@@ -1,14 +1,13 @@
-import neurone.*;
-
 import java.util.*;
+import neurone.*;
 
 public class MainProjet {
 
     // Chemin vers ton dataset — à adapter si besoin
 
-    static final String CHEMIN_TRAIN = "dataset_groupe_18/train/";
+    static final String CHEMIN_TRAIN = "../dataset_groupe_18/train/";
 
-    static final String CHEMIN_TEST  = "dataset_groupe_18/test/";
+    static final String CHEMIN_TEST  = "../dataset_groupe_18/test/";
 
     static final float  MSE_LIMITE   = 0.1f;
 
