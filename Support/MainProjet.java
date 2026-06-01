@@ -57,12 +57,15 @@ public class MainProjet {
 
             if (label == -1) continue;
 
+        // 1. Chargement et normalisation de l'image normal
             Image img = new Image(chemin, label, true); // true = niveaux de gris
-
             entreesList.add(normalise(img));
-
             labelsList.add((float) label);
 
+        // 2. Génération, normalisation et ajout de l'image MIROIR
+            Image imgMiroir = img.genererMiroir();
+            entreesList.add(normalise(imgMiroir));
+            labelsList.add((float) label); // Le miroir d'un chat est un chat -> meme label
         }
 
         System.out.println("Images chargées : " + entreesList.size());

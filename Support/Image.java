@@ -1,9 +1,9 @@
-import java.io.*;
-import java.util.*;
-import javax.imageio.*;
 import java.awt.image.*;
+import java.io.*;
 import java.nio.file.*;
+import java.util.*;
 import java.util.stream.*;
+import javax.imageio.*;
 
 public class Image
 {
@@ -62,6 +62,49 @@ public class Image
 			System.err.printf("Image non trouvée ou non lisible: %s\n", cheminImage);
 		}
 	}
+
+	
+    // Constructeur privé permettant de créer une image clonée/modifiée
+    
+    private Image(int label, int largeur, int hauteur, int[] nouvellesDonnees) {
+        this.label = label;
+        this.largeur = largeur;
+        this.hauteur = hauteur;
+        this.donnees = nouvellesDonnees;
+    }
+
+    
+    // Génère et retourne une nouvelle Image correspondant au miroir horizontal de l'image actuelle
+     
+    public Image genererMiroir() {
+        int[] donneesMiroir = new int[this.donnees.length];
+        boolean gris = estEnNiveauxDeGris();
+
+        for (int i = 0; i < hauteur; i++) {
+            for (int j = 0; j < largeur; j++) {
+                // Colonne cible inversée
+                int jMiroir = largeur - 1 - j;
+
+                if (gris) {
+                    // En niveaux de gris, 1 pixel = 1 case
+                    int indexOrigine = i * largeur + j;
+                    int indexMiroir = i * largeur + jMiroir;
+                    donneesMiroir[indexMiroir] = this.donnees[indexOrigine];
+                } else {
+                    // En couleurs RGB, 1 pixel = 3 cases consécutives (Rouge, Green, Bleu)
+                    int indexOrigine = 3 * (i * largeur + j);
+                    int indexMiroir = 3 * (i * largeur + jMiroir);
+
+                    donneesMiroir[indexMiroir + 0] = this.donnees[indexOrigine + 0]; // R
+                    donneesMiroir[indexMiroir + 1] = this.donnees[indexOrigine + 1]; // G
+                    donneesMiroir[indexMiroir + 2] = this.donnees[indexOrigine + 2]; // B
+                }
+            }
+        }
+
+        // On return l'image avec les bonnes dimension et le bon label
+        return new Image(this.label, this.largeur, this.hauteur, donneesMiroir);
+    }
 
 	public static List<String> listeFichiers(String repertoire) {
 		List<String> cheminsFichiers = null;
