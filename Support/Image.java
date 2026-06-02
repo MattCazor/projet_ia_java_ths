@@ -106,6 +106,86 @@ public class Image
         return new Image(this.label, this.largeur, this.hauteur, donneesMiroir);
     }
 
+
+
+ // Génère et retourne une nouvelle Image en niveaux de gris en y injectant du bruit aléatoire.    
+    public Image ImageBruit(int intensite) {
+        int[] donneesBruitees = new int[this.donnees.length];
+        
+        // On utilise une graine fixe (42) pour que le hasard soit identique à chaque exécution
+        java.util.Random rand = new java.util.Random(42); 
+
+        for (int i = 0; i < this.donnees.length; i++) {
+            // rand.nextInt(2 * intensite + 1) génère un nombre entre 0 et (2 * intensite)
+            // En soustrayant 'intensite', on décale la plage pour obtenir un nombre entre [-intensite, +intensite]
+            int bruit = rand.nextInt(2 * intensite + 1) - intensite;
+
+            int nouvelleValeur = this.donnees[i] + bruit;
+
+            // Sécurité absolue : un pixel en niveaux de gris doit rester coincé entre 0 (noir) et 255 (blanc)
+            if (nouvelleValeur > 255) nouvelleValeur = 255;
+            if (nouvelleValeur < 0) nouvelleValeur = 0;
+
+            donneesBruitees[i] = nouvelleValeur;
+        }
+
+        // On retourne le nouvel objet Image cloné et bruité
+        return new Image(this.label, this.largeur, this.hauteur, donneesBruitees);
+    }
+
+
+
+// Génère et retourne une nouvelle Image décalée horizontalement et verticalement.
+
+    public Image genererDecalage(int decalageX, int decalageY) {
+        int[] donneesDecalees = new int[this.donnees.length]; // Initialisé par défaut avec des 0 (noir)
+
+        for (int i = 0; i < hauteur; i++) {
+            for (int j = 0; j < largeur; j++) {
+                // Calcul des nouvelles coordonnées après décalage
+                int nouveauX = j + decalageX;
+                int nouveauY = i + decalageY;
+
+                // On vérifie si le pixel décalé reste bien à l'intérieur du cadre de l'image
+                if (nouveauX >= 0 && nouveauX < largeur && nouveauY >= 0 && nouveauY < hauteur) {
+                    int indexOrigine = i * largeur + j;
+                    int indexDecale = nouveauY * largeur + nouveauX;
+                    donneesDecalees[indexDecale] = this.donnees[indexOrigine];
+                }
+            }
+        }
+        return new Image(this.label, this.largeur, this.hauteur, donneesDecalees);
+    }
+
+
+
+
+//Génère et retourne une nouvelle Image sur laquelle un rectangle noir aléatoire a été appliqué.
+    public Image genererMasquage(int largeurMasque, int hauteurMasque) {
+        int[] donneesMasquees = new int[this.donnees.length];
+        
+        // Copie de l'image d'origine pour ne pas repartir d'un tableau vide
+        System.arraycopy(this.donnees, 0, donneesMasquees, 0, this.donnees.length);
+
+        // Graine fixe (42) pour que la position du rectangle soit identique à chaque exécution
+        java.util.Random rand = new java.util.Random(42);
+
+        // Choix aléatoire du coin supérieur gauche du rectangle (en veillant à ce qu'il ne dépasse pas de l'image)
+        int xMasque = rand.nextInt(largeur - largeurMasque);
+        int yMasque = rand.nextInt(hauteur - hauteurMasque);
+
+        // Application du rectangle noir (valeur 0)
+        for (int i = yMasque; i < yMasque + hauteurMasque; i++) {
+            for (int j = xMasque; j < xMasque + largeurMasque; j++) {
+                int index = i * largeur + j;
+                donneesMasquees[index] = 0; 
+            }
+        }
+        return new Image(this.label, this.largeur, this.hauteur, donneesMasquees);
+    }
+
+
+
 	public static List<String> listeFichiers(String repertoire) {
 		List<String> cheminsFichiers = null;
 		try {
@@ -120,6 +200,13 @@ public class Image
 		}
 		return cheminsFichiers;
 	}
+
+
+
+	
+   
+
+
 
 	public static void main (String[] args)
 	{
