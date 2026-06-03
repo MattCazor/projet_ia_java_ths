@@ -33,12 +33,18 @@ public class MainProjet {
         List<float[]> entreesList  = new ArrayList<>();
         List<Float>   labelsList   = new ArrayList<>();
 
+
+
         for (String chemin : fichiersTrain) {
             int label = labelDepuisChemin(chemin);
             if (label == -1) continue;
 
             // 1. Chargement et normalisation de l'image normale
-            Image img = new Image(chemin, label, true); // true = niveaux de gris
+            Image imgBrute = new Image(chemin, label, true); // true = niveaux de gris
+
+            //on applique le pre traitement sur les images
+            Image img = imgBrute.appliquerEgalisation().appliquerFlouGaussien();
+
             entreesList.add(normalise(img));
             labelsList.add((float) label);
 
@@ -57,8 +63,8 @@ public class MainProjet {
             Image imgBruiteeEtMiroir = imgBruitee.genererMiroir();
             entreesList.add(normalise(imgBruiteeEtMiroir));
             labelsList.add((float) label);
-/*
-  
+
+  /*
             // 5. Test du décalage (3 pixels à droite, 2 pixels en bas)
             Image imgDecalee = img.genererDecalage(3, 2);
             entreesList.add(normalise(imgDecalee));
@@ -69,11 +75,11 @@ public class MainProjet {
             Image imgMasquee = img.genererMasquage(8, 8);
             entreesList.add(normalise(imgMasquee));
             labelsList.add((float) label);
-
-            */
+*/
+            
         }
 
-        System.out.println("Images d'entraînement générées (Originales + Augmentées) : " + entreesList.size());
+        System.out.println("Images d'entraînement générées (Originales + Augmentées trest tets tests): test processing " + entreesList.size());
 
         // Mélange des données
         List<Integer> indices = new ArrayList<>();

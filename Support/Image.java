@@ -185,6 +185,81 @@ public class Image
     }
 
 
+    // Applique une égalisation d'histogramme sur l'image actuelle (niveaux de gris).
+    // Modifie ou retourne une nouvelle Image avec un contraste optimisé.
+    public Image appliquerEgalisation() {
+        int[] donneesEgalisees = new int[this.donnees.length];
+        int[] histogramme = new int[256];
+
+        // 1. Calcul de l'histogramme (compter combien de fois chaque niveau de gris apparaît)
+        for (int valeur : this.donnees) {
+            histogramme[valeur]++;
+        }
+
+        // 2. Calcul de l'histogramme cumulé
+        int[] histCumule = new int[256];
+        histCumule[0] = histogramme[0];
+        for (int i = 1; i < 256; i++) {
+            histCumule[i] = histCumule[i - 1] + histogramme[i];
+        }
+
+        // 3. Transformation des pixels avec la formule d'égalisation
+        float totalPixels = this.donnees.length;
+        for (int i = 0; i < this.donnees.length; i++) {
+            int valeurOrigine = this.donnees[i];
+            // Formule mathématique d'étalement : (HistCumulé(v) * 255) / Total
+            int nouvelleValeur = Math.round((histCumule[valeurOrigine] * 255.0f) / totalPixels);
+            
+            donneesEgalisees[i] = Math.max(0, Math.min(255, nouvelleValeur));
+        }
+
+        return new Image(this.label, this.largeur, this.hauteur, donneesEgalisees);
+    }
+
+
+
+    
+    //Applique un filtre de flou Gaussien (Noyau 3x3) pour lisser l'image.
+    public Image appliquerFlouGaussien() {
+        int[] donneesFloutees = new int[this.donnees.length];
+        
+        // Noyau Gaussien 3x3 standard : les coefficients mathématiques de pondération
+        // [ 1  2  1 ]
+        // [ 2  4  2 ]  -> Somme totale des coefficients = 16
+        // [ 1  2  1 ]
+        int[][] noyau = {
+            {1, 2, 1},
+            {2, 4, 2},
+            {1, 2, 1}
+        };
+        int sommeNoyau = 16;
+
+        // On parcourt l'image en évitant les pixels de bordures (pour ne pas sortir du tableau)
+        for (int i = 1; i < hauteur - 1; i++) {
+            for (int j = 1; j < largeur - 1; j++) {
+                int sommePonderee = 0;
+
+                // Application du noyau sur les 9 pixels (le pixel central + ses 8 voisins)
+                for (int ki = -1; ki <= 1; ki++) {
+                    for (int kj = -1; kj <= 1; kj++) {
+                        int pixelVoisin = this.donnees[(i + ki) * largeur + (j + kj)];
+                        sommePonderee += pixelVoisin * noyau[ki + 1][kj + 1];
+                    }
+                }
+
+                donneesFloutees[i * largeur + j] = sommePonderee / sommeNoyau;
+            }
+        }
+        
+        // Remplissage rapide des bordures restées vides par copie simple
+        for (int i = 0; i < this.donnees.length; i++) {
+            if (donneesFloutees[i] == 0) {
+                donneesFloutees[i] = this.donnees[i];
+            }
+        }
+
+        return new Image(this.label, this.largeur, this.hauteur, donneesFloutees);
+    }
 
 	public static List<String> listeFichiers(String repertoire) {
 		List<String> cheminsFichiers = null;
