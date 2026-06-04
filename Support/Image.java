@@ -29,6 +29,9 @@ public class Image {
                 type, label(), largeur(), hauteur(), taille());
     }
 
+    // =========================================================================
+    // CONSTRUCTEURS
+    // =========================================================================
     public Image(final String cheminImage, int label, boolean niveauxDeGris) {
         try {
             final BufferedImage img = ImageIO.read(new File(cheminImage));
@@ -69,6 +72,10 @@ public class Image {
         this.donnees = nouvellesDonnees;
     }
 
+    // =========================================================================
+    // DATA AUGMENTATION ET TRAITEMENT D'IMAGE (Filtres)
+    // =========================================================================
+
     public Image genererMiroir() {
         int[] donneesMiroir = new int[this.donnees.length];
         boolean gris = estEnNiveauxDeGris();
@@ -76,14 +83,17 @@ public class Image {
         for (int i = 0; i < hauteur; i++) {
             for (int j = 0; j < largeur; j++) {
                 int jMiroir = largeur - 1 - j;
+
                 if (gris) {
-                    donneesMiroir[i * largeur + jMiroir] = this.donnees[i * largeur + j];
+                    int indexOrigine = i * largeur + j;
+                    int indexMiroir = i * largeur + jMiroir;
+                    donneesMiroir[indexMiroir] = this.donnees[indexOrigine];
                 } else {
-                    int idxOrig = 3 * (i * largeur + j);
-                    int idxMir = 3 * (i * largeur + jMiroir);
-                    donneesMiroir[idxMir + 0] = this.donnees[idxOrig + 0];
-                    donneesMiroir[idxMir + 1] = this.donnees[idxOrig + 1];
-                    donneesMiroir[idxMir + 2] = this.donnees[idxOrig + 2];
+                    int indexOrigine = 3 * (i * largeur + j);
+                    int indexMiroir = 3 * (i * largeur + jMiroir);
+                    donneesMiroir[indexMiroir + 0] = this.donnees[indexOrigine + 0];
+                    donneesMiroir[indexMiroir + 1] = this.donnees[indexOrigine + 1];
+                    donneesMiroir[indexMiroir + 2] = this.donnees[indexOrigine + 2];
                 }
             }
         }
@@ -97,47 +107,124 @@ public class Image {
         for (int i = 0; i < this.donnees.length; i++) {
             int bruit = rand.nextInt(2 * intensite + 1) - intensite;
             int nouvelleValeur = this.donnees[i] + bruit;
+
             if (nouvelleValeur > 255) nouvelleValeur = 255;
             if (nouvelleValeur < 0) nouvelleValeur = 0;
+
             donneesBruitees[i] = nouvelleValeur;
         }
         return new Image(this.label, this.largeur, this.hauteur, donneesBruitees);
     }
 
-    public static List<String> listeFichiers(String repertoire) {
-        List<String> cheminsFichiers = null;
-        try {
-            cheminsFichiers = Files.walk(Paths.get(repertoire))
-                    .filter(Files::isRegularFile)
-                    .map(Path::toAbsolutePath)
-                    .map(Path::toString)
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            e.printStackTrace();
+    public Image genererDecalage(int decalageX, int decalageY) {
+        int[] donneesDecalees = new int[this.donnees.length];
+
+        for (int i = 0; i < hauteur; i++) {
+            for (int j = 0; j < largeur; j++) {
+                int nouveauX = j + decalageX;
+                int nouveauY = i + decalageY;
+
+                if (nouveauX >= 0 && nouveauX < largeur && nouveauY >= 0 && nouveauY < hauteur) {
+                    int indexOrigine = i * largeur + j;
+                    int indexDecale = nouveauY * largeur + nouveauX;
+                    donneesDecalees[indexDecale] = this.donnees[indexOrigine];
+                }
+            }
         }
-        return cheminsFichiers;
+        return new Image(this.label, this.largeur, this.hauteur, donneesDecalees);
+    }
+
+    public Image genererMasquage(int largeurMasque, int hauteurMasque) {
+        int[] donneesMasquees = new int[this.donnees.length];
+        System.arraycopy(this.donnees, 0, donneesMasquees, 0, this.donnees.length);
+        java.util.Random rand = new java.util.Random(42);
+
+        int xMasque = rand.nextInt(largeur - largeurMasque);
+        int yMasque = rand.nextInt(hauteur - hauteurMasque);
+
+        for (int i = yMasque; i < yMasque + hauteurMasque; i++) {
+            for (int j = xMasque; j < xMasque + largeurMasque; j++) {
+                int index = i * largeur + j;
+                donneesMasquees[index] = 0;
+            }
+        }
+        return new Image(this.label, this.largeur, this.hauteur, donneesMasquees);
+    }
+
+    public Image appliquerEgalisation() {
+        int[] donneesEgalisees = new int[this.donnees.length];
+        int[] histogramme = new int[256];
+
+        for (int valeur : this.donnees) {
+            histogramme[valeur]++;
+        }
+
+        int[] histCumule = new int[256];
+        histCumule[0] = histogramme[0];
+        for (int i = 1; i < 256; i++) {
+            histCumule[i] = histCumule[i - 1] + histogramme[i];
+        }
+
+        float totalPixels = this.donnees.length;
+        for (int i = 0; i < this.donnees.length; i++) {
+            int valeurOrigine = this.donnees[i];
+            int nouvelleValeur = Math.round((histCumule[valeurOrigine] * 255.0f) / totalPixels);
+            donneesEgalisees[i] = Math.max(0, Math.min(255, nouvelleValeur));
+        }
+
+        return new Image(this.label, this.largeur, this.hauteur, donneesEgalisees);
+    }
+
+    public Image appliquerFlouGaussien() {
+        int[] donneesFloutees = new int[this.donnees.length];
+
+        int[][] noyau = {
+                {1, 2, 1},
+                {2, 4, 2},
+                {1, 2, 1}
+        };
+        int sommeNoyau = 16;
+
+        for (int i = 1; i < hauteur - 1; i++) {
+            for (int j = 1; j < largeur - 1; j++) {
+                int sommePonderee = 0;
+
+                for (int ki = -1; ki <= 1; ki++) {
+                    for (int kj = -1; kj <= 1; kj++) {
+                        int pixelVoisin = this.donnees[(i + ki) * largeur + (j + kj)];
+                        sommePonderee += pixelVoisin * noyau[ki + 1][kj + 1];
+                    }
+                }
+
+                donneesFloutees[i * largeur + j] = sommePonderee / sommeNoyau;
+            }
+        }
+
+        for (int i = 0; i < this.donnees.length; i++) {
+            if (donneesFloutees[i] == 0) {
+                donneesFloutees[i] = this.donnees[i];
+            }
+        }
+
+        return new Image(this.label, this.largeur, this.hauteur, donneesFloutees);
     }
 
     // =========================================================================
-    // L'EXTRACTEUR ULTIME : HOG 5x5 + TSL + TEXTURE (265 Caractéristiques)
+    // EXTRACTION DE CARACTÉRISTIQUES (HOG + TSL + TEXTURE)
     // =========================================================================
     public float[] extraireCaracteristiques() {
-        // 1. TSL pour le Fond (32 features)
         float[] histTeinte = new float[16];
         float[] histSat = new float[8];
         float[] histLum = new float[8];
 
-        // 2. HOG Haute Résolution 5x5 pour les Formes (5 * 5 * 9 = 225 features)
         int nbZonesX = 5;
         int nbZonesY = 5;
         float[] hogSpatial = new float[nbZonesX * nbZonesY * 9];
 
-        // 3. L'équivalent de la FFT : Histogramme des Textures (8 features)
         float[] histTexture = new float[8];
 
         int[] gris = new int[largeur * hauteur];
 
-        // --- A. ANALYSE DU FOND (TSL) ---
         for (int i = 0; i < hauteur; i++) {
             for (int j = 0; j < largeur; j++) {
                 int index = i * largeur + j;
@@ -173,7 +260,6 @@ public class Image {
             }
         }
 
-        // --- B. ANALYSE DES FORMES ET TEXTURES (HOG + FFT Approximation) ---
         for (int i = 1; i < hauteur - 1; i++) {
             for (int j = 1; j < largeur - 1; j++) {
                 int gx = gris[i * largeur + (j + 1)] - gris[i * largeur + (j - 1)];
@@ -181,7 +267,6 @@ public class Image {
 
                 float magnitude = (float) Math.sqrt(gx * gx + gy * gy);
 
-                // Emulation FFT : On classe l'intensité de la texture
                 int texBin = Math.min(7, (int)(magnitude / 32));
                 histTexture[texBin]++;
 
@@ -201,7 +286,6 @@ public class Image {
             }
         }
 
-        // --- C. NORMALISATION STATISTIQUE ---
         int nbPixels = largeur * hauteur;
         for(int i=0; i<16; i++) histTeinte[i] /= nbPixels;
         for(int i=0; i<8; i++) histSat[i] /= nbPixels;
@@ -215,7 +299,6 @@ public class Image {
             for(int i=0; i<hogSpatial.length; i++) hogSpatial[i] /= sumHog;
         }
 
-        // --- D. VECTEUR FINAL (265 CARACTÉRISTIQUES) ---
         float[] features = new float[265];
         int pos = 0;
         for(float f : histTeinte) features[pos++] = f;
@@ -225,5 +308,65 @@ public class Image {
         for(float f : hogSpatial) features[pos++] = f;
 
         return features;
+    }
+
+    // =========================================================================
+    // OUTILS (Sauvegarde et listage)
+    // =========================================================================
+    public void sauvegarder(String cheminFichier) {
+        try {
+            BufferedImage imgOut = new BufferedImage(largeur, hauteur, BufferedImage.TYPE_INT_RGB);
+            for (int i = 0; i < hauteur; i++) {
+                for (int j = 0; j < largeur; j++) {
+                    int index = i * largeur + j;
+                    int r, g, b;
+
+                    if (estEnNiveauxDeGris()) {
+                        r = g = b = donnees[index];
+                    } else {
+                        r = donnees[3 * index];
+                        g = donnees[3 * index + 1];
+                        b = donnees[3 * index + 2];
+                    }
+
+                    int rgb = (r << 16) | (g << 8) | b;
+                    imgOut.setRGB(j, i, rgb);
+                }
+            }
+            ImageIO.write(imgOut, "jpg", new File(cheminFichier));
+            System.out.println("-> Image générée avec succès : " + cheminFichier);
+        } catch (Exception e) {
+            System.out.println("Erreur lors de la création de l'image : " + e.getMessage());
+        }
+    }
+
+    public static List<String> listeFichiers(String repertoire) {
+        List<String> cheminsFichiers = null;
+        try {
+            cheminsFichiers = Files.walk(Paths.get(repertoire))
+                    .filter(Files::isRegularFile)
+                    .map(Path::toAbsolutePath)
+                    .map(Path::toString)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return cheminsFichiers;
+    }
+
+    public static void main (String[] args) {
+        List<String> cheminsFichiers = listeFichiers("dataset_animaux/");
+        if (cheminsFichiers != null) {
+            for (String chemin : cheminsFichiers) {
+                System.out.println(chemin);
+            }
+        }
+
+        final String chemin = "dataset_animaux/train/dog/010552.jpg";
+        final int labelImage = chemin.indexOf("dog") != -1 ? LabelChien : LabelInconnu;
+        Image im1 = new Image(chemin, labelImage, false);
+        Image im2 = new Image(chemin, labelImage, true);
+        im1.afficheMetadonnees();
+        im2.afficheMetadonnees();
     }
 }
